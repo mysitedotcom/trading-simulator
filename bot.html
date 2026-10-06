@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Tick Pattern Bot</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;700;800&family=JetBrains+Mono:wght@600;700&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+:root {
+  --bg: #05070d; --panel: #0b1120; --panel2: #101a30; --line: rgba(120,160,255,.15);
+  --ink: #d6e4ff; --muted: rgba(214,228,255,.62);
+  --up: #3aa8f5; --down: #ff4d4d; --green: #2ecc71; --amber: #ffc24a;
+  --ui: 'Manrope', Arial, sans-serif; --mono: 'JetBrains Mono', 'Courier New', monospace;
+}
+body {
+  background: radial-gradient(900px 500px at 50% -10%, #0e1a36, var(--bg) 65%);
+  color: #fff; font-family: var(--ui); min-height: 100vh;
+  display: flex; justify-content: center;
+  padding: calc(10px + env(safe-area-inset-top)) 10px calc(14px + env(safe-area-inset-bottom));
+}
+.app { width: 100%; max-width: 560px; display: grid; gap: 10px; align-content: start; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 12px; }
+
+/* top bar */
+.bar { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+.tabs { display: flex; gap: 4px; background: var(--panel); border: 1px solid var(--line); border-radius: 100px; padding: 3px; }
+.tabs button { border: 0; background: transparent; color: var(--muted); font: 700 12px var(--ui); padding: 7px 11px; border-radius: 100px; cursor: pointer; }
+.tabs button[aria-pressed="true"] { background: var(--up); color: #04101c; }
+.src { font-size: 12px; font-weight: 800; padding: 6px 12px; border-radius: 100px; border: 1px solid; }
+.src.live { color: var(--green); border-color: rgba(46,204,113,.5); background: rgba(46,204,113,.08); }
+.src.demo { color: var(--amber); border-color: rgba(255,194,74,.5); background: rgba(255,194,74,.08); }
+.src.wait { color: var(--muted); border-color: var(--line); }
+
+/* wave */
+#line { display: block; width: 100%; height: 120px; }
+.arrows { display: flex; gap: 4px; flex-wrap: nowrap; overflow: hidden; justify-content: flex-end; margin-top: 6px; }
+.arrow { flex: 0 0 auto; width: 28px; height: 26px; border-radius: 7px; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 14px; color: #fff; }
+.arrow.up { background: linear-gradient(180deg, #2d86c8, #1a5f96); }
+.arrow.down { background: linear-gradient(180deg, #c42727, #8d1212); }
+.legend { font-size: 11px; color: var(--muted); margin-top: 6px; display: flex; gap: 12px; }
+.legend i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 5px; }
+
+/* call */
+.call { text-align: center; padding: 14px 12px; transition: box-shadow .25s, border-color .25s; }
+.call.up { border-color: var(--up); box-shadow: 0 0 24px rgba(58,168,245,.35); }
+.call.down { border-color: var(--down); box-shadow: 0 0 24px rgba(255,77,77,.35); }
+.call__label { font-size: clamp(30px, 9vw, 44px); font-weight: 800; letter-spacing: 1px; }
+.call.up .call__label { color: var(--up); } .call.down .call__label { color: var(--down); }
+.call.wait .call__label { color: rgba(214,228,255,.4); }
+.call__sub { font-size: 13px; color: var(--muted); margin-top: 4px; min-height: 18px; }
+.call__bar { height: 5px; background: rgba(255,255,255,.08); border-radius: 3px; margin-top: 10px; overflow: hidden; }
+.call__bar i { display: block; height: 100%; width: 0; background: var(--green); transition: width .4s linear; }
+
+/* recent + score */
+.recent { display: flex; gap: 5px; flex-wrap: wrap; min-height: 24px; }
+.dot { width: 24px; height: 24px; border-radius: 7px; font-size: 12px; font-weight: 800; display: flex; align-items: center; justify-content: center; }
+.dot.hit { background: rgba(46,204,113,.15); color: var(--green); border: 1px solid rgba(46,204,113,.5); }
+.dot.miss { background: rgba(255,77,77,.12); color: #ff8a8a; border: 1px solid rgba(255,77,77,.45); }
+.score { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.stat { background: var(--panel2); border-radius: 10px; padding: 9px; }
+.stat small { display: block; font-size: 11px; color: var(--muted); font-weight: 700; }
+.stat b { font-family: var(--mono); font-size: 15px; }
+.good { color: var(--green); } .bad { color: #ff8a8a; }
+.verdict { font-size: 13px; color: var(--muted); line-height: 1.5; margin-top: 10px; }
+.verdict.warn { color: var(--amber); }
+
+/* settings */
+details { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 10px 12px; font-size: 13px; }
+summary { cursor: pointer; font-weight: 800; color: var(--ink); }
+.set { display: grid; gap: 10px; margin-top: 10px; color: var(--muted); }
+.set label { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.set input[type=text], .set select { background: var(--panel2); color: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 7px 9px; font: 600 13px var(--mono); max-width: 55%; }
+.set button { background: var(--panel2); color: var(--ink); border: 1px solid var(--line); border-radius: 10px; padding: 9px 12px; font: 700 13px var(--ui); cursor: pointer; }
+.set .hint { font-size: 12px; line-height: 1.5; }
+.foot { text-align: center; font-size: 11.5px; color: var(--muted); line-height: 1.5; padding: 2px 6px; }
+body.compact .wavewrap, body.compact .recent, body.compact details { display: none; }
+button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-visible { outline: 2px solid var(--up); outline-offset: 2px; }
+@media (max-width: 420px) { .score { grid-template-columns: 1fr 1fr; } }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="bar">
+    <div class="tabs" id="tabs" role="group" aria-label="Market">
+      <button type="button" data-s="1HZ10V">V10</button>
+      <button type="button" data-s="1HZ25V" aria-pressed="true">V25</button>
+      <button type="button" data-s="1HZ50V">V50</button>
+      <button type="button" data-s="1HZ75V">V75</button>
+      <button type="button" data-s="1HZ100V">V100</button>
+    </div>
+    <span class="src wait" id="src" role="status">Starting…</span>
+  </div>
+
+  <div class="card wavewrap">
+    <canvas id="line" aria-label="Recent ticks"></canvas>
+    <div class="arrows" id="arrows"></div>
+    <div class="legend"><span><i style="background:var(--up)"></i>Tick up</span><span><i style="background:var(--down)"></i>Tick down</span></div>
+  </div>
+
+  <div class="card call wait" id="call" role="status" aria-live="polite">
+    <div class="call__label" id="callLabel">WAIT</div>
+    <div class="call__sub" id="callSub">Watching for the pattern</div>
+    <div class="call__bar"><i id="callBar"></i></div>
+  </div>
+
+  <div class="card">
+    <div class="recent" id="recent"></div>
+    <div class="score" style="margin-top:10px">
+      <div class="stat"><small>Calls</small><b id="nCalls">0</b></div>
+      <div class="stat"><small>Hit rate</small><b id="rate">-</b></div>
+      <div class="stat"><small>Break-even</small><b id="be">54.1%</b></div>
+      <div class="stat"><small>Paper result</small><b id="pnl">0.00</b></div>
+    </div>
+    <p class="verdict" id="verdict">Every call is scored against the next 5 ticks. Judge the rule by hundreds of calls, not a few.</p>
+  </div>
+
+  <details>
+    <summary>Settings</summary>
+    <div class="set">
+      <button type="button" id="connect">Reconnect live ticks</button>
+      <p class="hint" id="hint">Live ticks come from Deriv's public price feed, which needs no login, App ID or token. If the feed can't be reached the bot switches to simulated ticks and says so on the badge. Never paste an API token into this page.</p>
+      <label>Ticks in a row
+        <select id="streak"><option>2</option><option selected>3</option><option>4</option><option>5</option></select>
+      </label>
+      <label>Skip volatile stretches <input type="checkbox" id="calm" checked></label>
+      <label>Beep on a call <input type="checkbox" id="sound"></label>
+      <label>Compact view <input type="checkbox" id="compact"></label>
+    </div>
+  </details>
+
+  <p class="foot">Experimental pattern tracker. It is scored openly and gives no guarantee. Scored as Rise/Fall over 5 ticks at 1.85× payout; real payouts vary. Not financial advice.</p>
+</div>
+
+<script>
+// ============================================================
+// Tick Pattern Bot
+// Rule: N ticks in one direction -> call the same direction for 5 ticks.
+// Every call is scored against what actually happened.
+// ============================================================
+const DURATION = 5, PAYOUT = 1.85, BREAKEVEN = 1 / PAYOUT;
+// Deriv's public market-data endpoint: no App ID, token or login needed (check developers.deriv.com if it ever changes)
+const WS_URL = 'wss://api.derivws.com/trading/v1/options/ws/public';
+const NAMES = { '1HZ10V': 'Volatility 10 (1s)', '1HZ25V': 'Volatility 25 (1s)', '1HZ50V': 'Volatility 50 (1s)', '1HZ75V': 'Volatility 75 (1s)', '1HZ100V': 'Volatility 100 (1s)' };
+const UP = '#3aa8f5', DOWN = '#ff4d4d';
+const $ = id => document.getElementById(id);
+
+let symbol = '1HZ25V', mode = 'wait';
+let prices = [], pip = 2, open = null, results = [];
+let ws = null, gen = 0, demoTimer = null, retry = 0, retryTimer = null, audio = null;
+
+// ---- saved settings (fails quietly if storage is blocked) ----
+const store = {
+  get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+};
+if (store.get('symbol') && NAMES[store.get('symbol')]) symbol = store.get('symbol');
+['streak'].forEach(k => { const v = store.get(k); if (v) $(k).value = v; });
+['calm', 'sound', 'compact'].forEach(k => { const v = store.get(k); if (v !== null) $(k).checked = v === '1'; });
+document.body.classList.toggle('compact', $('compact').checked);
+
+// ---- rule ----
+function rule(arr, i, streak, calm) {
+  if (i < 31) return null;
+  let up = true, down = true;
+  for (let k = 0; k < streak; k++) {
+    const d = arr[i - k] - arr[i - k - 1];
+    if (d <= 0) up = false;
+    if (d >= 0) down = false;
+  }
+  if (!up && !down) return null;
+  if (calm) {
+    const avg = len => { let s = 0; for (let k = 0; k < len; k++) s += Math.abs(arr[i - k] - arr[i - k - 1]); return s / len; };
+    if (avg(10) > avg(Math.min(100, i))) return null;
+  }
+  return up ? 'up' : 'down';
+}
+const digitOf = p => Math.abs(Math.round(p * Math.pow(10, pip))) % 10;
+
+// ---- ticks in ----
+function onTick(p) {
+  prices.push(p);
+  if (prices.length > 400) prices.shift();
+  const i = prices.length - 1;
+
+  if (open) {
+    open.left--;
+    if (open.left === 0) {
+      const hit = open.dir === 'up' ? p > open.entry : p < open.entry;
+      results.push({ dir: open.dir, hit });
+      if (results.length > 500) results.shift();
+      open = null;
+    }
+  }
+  if (!open) {
+    const dir = rule(prices, i, parseInt($('streak').value, 10), $('calm').checked);
+    if (dir) { open = { dir, entry: p, left: DURATION }; beep(dir); }
+  }
+  render();
+}
+
+// ---- sources ----
+function setSrc(kind, text) { const s = $('src'); s.className = 'src ' + kind; s.textContent = text; }
+function resetData() { prices = []; open = null; results = []; render(); }
+
+function stopAll() {
+  gen++;
+  clearInterval(demoTimer); demoTimer = null;
+  clearTimeout(retryTimer);
+  if (ws) { try { ws.close(); } catch (e) {} ws = null; }
+}
+function startDemo(note) {
+  stopAll(); resetData(); mode = 'demo'; pip = 2;
+  let p = 1154.9;
+  for (let i = 0; i < 60; i++) { p += (Math.random() - 0.5) * 0.9; prices.push(Math.round(p * 100) / 100); }
+  setSrc('demo', 'SIMULATED ticks');
+  if (note) $('hint').textContent = note;
+  demoTimer = setInterval(() => {
+    p = Math.max(100, p + gauss() * 0.4);
+    onTick(Math.round(p * 100) / 100);
+  }, 1000);
+  render();
+}
+function gauss() { let u = 0, v = 0; while (!u) u = Math.random(); while (!v) v = Math.random(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); }
+
+function startLive() {
+  stopAll(); resetData(); mode = 'wait';
+  setSrc('wait', 'Connecting…');
+  const myGen = gen;
+  let got = false, sock;
+  try { sock = new WebSocket(WS_URL); }
+  catch (e) { startDemo('Could not open a connection. Using simulated ticks.'); return; }
+  ws = sock;
+  const timer = setTimeout(() => { if (!got && myGen === gen) startDemo('No data received from the feed. Using simulated ticks.'); }, 9000);
+
+  sock.onopen = () => {
+    sock.send(JSON.stringify({ ticks_history: symbol, count: 120, end: 'latest', style: 'ticks' }));
+    sock.send(JSON.stringify({ ticks: symbol, subscribe: 1 }));
+  };
+  sock.onmessage = ev => {
+    if (myGen !== gen) return;
+    let m; try { m = JSON.parse(ev.data); } catch (e) { return; }
+    if (m.error) { clearTimeout(timer); if (!got) startDemo('Feed error: ' + (m.error.message || 'unknown') + '. Using simulated ticks.'); return; }
+    if (m.msg_type === 'history' && m.history && m.history.prices) {
+      pip = m.pip_size || pip;
+      prices = m.history.prices.map(Number);
+      if (!got) { got = true; clearTimeout(timer); mode = 'live'; retry = 0; setSrc('live', 'LIVE · ' + NAMES[symbol]); }
+      render();
+    } else if (m.msg_type === 'tick' && m.tick && typeof m.tick.quote === 'number') {
+      pip = m.tick.pip_size || pip;
+      if (!got) { got = true; clearTimeout(timer); mode = 'live'; retry = 0; setSrc('live', 'LIVE · ' + NAMES[symbol]); }
+      onTick(m.tick.quote);
+    }
+  };
+  sock.onerror = () => {};
+  sock.onclose = () => {
+    if (myGen !== gen) return;
+    clearTimeout(timer);
+    if (got) {
+      // lost a working connection: retry, and say so
+      setSrc('wait', 'Reconnecting…');
+      retry = Math.min(retry + 1, 5);
+      retryTimer = setTimeout(startLive, retry * 2000);
+    } else {
+      startDemo('Connection closed. Using simulated ticks.');
+    }
+  };
+}
+
+// ---- audio ----
+function beep(dir) {
+  if (!$('sound').checked) return;
+  try {
+    audio = audio || new (window.AudioContext || window.webkitAudioContext)();
+    const o = audio.createOscillator(), g = audio.createGain();
+    o.frequency.value = dir === 'up' ? 880 : 440; o.type = 'sine';
+    g.gain.setValueAtTime(0.12, audio.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, audio.currentTime + 0.25);
+    o.connect(g); g.connect(audio.destination); o.start(); o.stop(audio.currentTime + 0.25);
+  } catch (e) {}
+}
+
+// ---- render ----
+const canvas = $('line'), ctx = canvas.getContext('2d');
+function drawLine() {
+  const dpr = window.devicePixelRatio || 1, r = canvas.getBoundingClientRect();
+  const W = r.width, H = r.height;
+  if (!W) return;
+  canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, W, H);
+  const CELL = W < 420 ? 28 : 34;
+  const n = Math.max(6, Math.floor(W / CELL));
+  const arr = prices.slice(-n);
+  if (arr.length < 2) return;
+  const mn = Math.min(...arr), mx = Math.max(...arr), rg = (mx - mn) || 1;
+  const x = i => W - (arr.length - i - 0.5) * CELL;
+  const y = v => 40 + (mx - v) / rg * (H - 56);
+
+  ctx.strokeStyle = 'rgba(214,228,255,.35)'; ctx.lineWidth = 1.4; ctx.lineJoin = 'round';
+  ctx.beginPath(); arr.forEach((v, i) => i ? ctx.lineTo(x(i), y(v)) : ctx.moveTo(x(i), y(v))); ctx.stroke();
+
+  ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+  arr.forEach((v, i) => {
+    const px = x(i), py = y(v), isLast = i === arr.length - 1;
+    const dirUp = i === 0 ? true : v > arr[i - 1], tie = i > 0 && v === arr[i - 1];
+    ctx.fillStyle = tie ? '#9aa8c4' : dirUp ? UP : DOWN;
+    ctx.font = '800 20px "JetBrains Mono", monospace';
+    ctx.fillText(String(digitOf(v)), px, py - 12);
+    ctx.beginPath(); ctx.arc(px, py, isLast ? 5 : 2.5, 0, Math.PI * 2);
+    ctx.fillStyle = isLast ? '#2ecc71' : '#0b1120'; ctx.fill();
+    if (!isLast) { ctx.strokeStyle = 'rgba(214,228,255,.5)'; ctx.lineWidth = 1; ctx.stroke(); }
+  });
+
+  // arrow chips
+  const box = $('arrows'); box.innerHTML = '';
+  const cap = Math.floor((box.clientWidth || W) / 32);
+  for (let i = Math.max(1, arr.length - cap); i < arr.length; i++) {
+    if (arr[i] === arr[i - 1]) continue;
+    const d = document.createElement('div');
+    const up = arr[i] > arr[i - 1];
+    d.className = 'arrow ' + (up ? 'up' : 'down'); d.textContent = up ? '↑' : '↓';
+    box.appendChild(d);
+  }
+}
+
+function render() {
+  drawLine();
+  const c = $('call');
+  if (open) {
+    c.className = 'card call ' + open.dir;
+    $('callLabel').textContent = 'TAKE ' + open.dir.toUpperCase();
+    $('callSub').textContent = `${DURATION}-tick trade · ${open.left} tick${open.left === 1 ? '' : 's'} left`;
+    $('callBar').style.width = ((DURATION - open.left) / DURATION * 100) + '%';
+  } else {
+    c.className = 'card call wait';
+    $('callLabel').textContent = 'WAIT';
+    $('callSub').textContent = mode === 'wait' ? 'Waiting for data…' : 'Watching for the pattern';
+    $('callBar').style.width = '0';
+  }
+  const total = results.length, hits = results.filter(r => r.hit).length;
+  const rate = total ? hits / total : 0, net = hits * (PAYOUT - 1) - (total - hits);
+  $('nCalls').textContent = total;
+  $('rate').textContent = total ? (rate * 100).toFixed(1) + '%' : '-';
+  $('rate').className = total >= 30 ? (rate >= BREAKEVEN ? 'good' : 'bad') : '';
+  $('pnl').textContent = (net > 0 ? '+' : '') + net.toFixed(2);
+  $('pnl').className = net > 0 ? 'good' : net < 0 ? 'bad' : '';
+  const v = $('verdict');
+  if (total < 30) { v.className = 'verdict'; v.textContent = 'Too few calls to judge. Every call is scored against the next 5 ticks, so keep watching.'; }
+  else if (rate < BREAKEVEN) { v.className = 'verdict warn'; v.textContent = `Below break-even so far (${(rate * 100).toFixed(1)}% vs ${(BREAKEVEN * 100).toFixed(1)}%). On paper this rule is losing money.`; }
+  else { v.className = 'verdict'; v.textContent = 'Above break-even so far. Short runs are often luck, so keep testing before risking money.'; }
+  const rec = $('recent'); rec.innerHTML = '';
+  results.slice(-14).forEach(r => {
+    const d = document.createElement('div'); d.className = 'dot ' + (r.hit ? 'hit' : 'miss');
+    d.title = r.dir.toUpperCase(); d.textContent = r.hit ? '✓' : '✕'; rec.appendChild(d);
+  });
+}
+
+// ---- wiring ----
+function markTab() { document.querySelectorAll('#tabs button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.s === symbol))); }
+$('tabs').addEventListener('click', e => {
+  const s = e.target.dataset && e.target.dataset.s; if (!s || s === symbol) return;
+  symbol = s; store.set('symbol', s); markTab(); start();
+});
+$('connect').addEventListener('click', startLive);
+['streak', 'calm', 'sound', 'compact'].forEach(k => $(k).addEventListener('change', () => {
+  store.set(k, $(k).type === 'checkbox' ? ($(k).checked ? '1' : '0') : $(k).value);
+  if (k === 'compact') document.body.classList.toggle('compact', $('compact').checked);
+  if (k === 'streak' || k === 'calm') { results = []; open = null; }
+  render();
+}));
+window.addEventListener('resize', drawLine);
+function start() { startLive(); }
+markTab(); start();
+</script>
+</body>
+</html>
