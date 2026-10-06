@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Coach Signal Overlay (Simulation)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;700;800&family=JetBrains+Mono:wght@600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Background: Deriv screenshot -->
+  <div class="fake-bg">
+    <img src="assets/deriv-screenshot.png" alt="Trading platform interface">
+  </div>
+
+  <header class="topbar">
+    <div class="topbar__left">
+      <span class="topbar__dot"></span>
+      <span class="topbar__title">Coach Signals</span>
+    </div>
+    <div class="topbar__badge" role="status">
+      <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M6 3.2v3.2M6 8.2v.1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      Simulated data
+    </div>
+  </header>
+
+  <main class="overlay">
+
+    <div class="overlay__telegram">
+      <span>Telegram @nato4everme</span>
+    </div>
+
+    <!-- Moving signal lines -->
+    <div class="overlay__wave">
+      <canvas id="wave" aria-label="Simulated signal lines"></canvas>
+      <span class="wave__tag">Simulation</span>
+      <div class="wave__legend">
+        <span class="legend legend--up">Peak</span>
+        <span class="legend legend--down">Dip</span>
+        <span class="legend legend--trend">Trend</span>
+      </div>
+    </div>
+
+    <!-- Scrolling code sequence -->
+    <div class="overlay__code" aria-hidden="true">
+      <div class="code-track" id="codeTrack"></div>
+    </div>
+
+    <div class="overlay__line"></div>
+
+    <p class="overlay__disclaimer">Simulation for demonstration only. Not real signals or trading advice.</p>
+
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>

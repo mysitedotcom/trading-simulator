@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Tick Trader Simulator (Demo Money)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;700;800&family=JetBrains+Mono:wght@600;700&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+:root {
+  --bg: #05070d;
+  --panel: #0b1120;
+  --panel-2: #101a30;
+  --line: rgba(120,160,255,0.14);
+  --ink: #d6e4ff;
+  --muted: rgba(214,228,255,0.62);
+  --blue: #3aa8f5;
+  --red: #ff4d4d;
+  --green: #1fd18b;
+  --amber: #ffc24a;
+  --ui: 'Manrope', 'Inter', Arial, sans-serif;
+  --mono: 'JetBrains Mono', 'Courier New', monospace;
+}
+body {
+  background: radial-gradient(1200px 600px at 20% -10%, #0e1a36 0%, var(--bg) 60%);
+  color: #fff;
+  font-family: var(--ui);
+  min-height: 100vh;
+  padding: calc(12px + env(safe-area-inset-top)) clamp(10px, 2vw, 24px) calc(16px + env(safe-area-inset-bottom));
+}
+
+/* ---------- Header ---------- */
+header {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; flex-wrap: wrap; margin-bottom: 14px;
+}
+.brand { display: flex; align-items: center; gap: 10px; }
+.brand__dot { width: 10px; height: 10px; border-radius: 50%; background: var(--blue); box-shadow: 0 0 10px var(--blue); }
+.brand__name { font-size: 16px; font-weight: 800; color: var(--ink); letter-spacing: .4px; }
+.badge {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 7px 14px; border-radius: 100px;
+  font-size: 13px; font-weight: 700; color: var(--amber);
+  background: rgba(255,194,74,.1); border: 1px solid rgba(255,194,74,.45);
+}
+.balance { text-align: right; }
+.balance small { display: block; font-size: 12px; color: var(--amber); font-weight: 700; }
+.balance strong { font-family: var(--mono); font-size: clamp(18px, 4.5vw, 24px); }
+
+/* ---------- Layout ---------- */
+.grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: 14px;
+  align-items: start;
+}
+.col { display: grid; gap: 14px; min-width: 0; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 14px; }
+.card h2 { font-size: 14px; font-weight: 800; color: var(--ink); margin-bottom: 10px; }
+
+/* ---------- Chart ---------- */
+.chart { position: relative; padding: 0; overflow: hidden; height: clamp(250px, 46vh, 460px); }
+#chart { display: block; width: 100%; height: 100%; }
+.chart__title {
+  position: absolute; top: 10px; left: 14px; font-size: 13px; font-weight: 800; color: var(--ink);
+}
+.chart__title span { display: block; font-size: 11px; font-weight: 600; color: var(--muted); margin-top: 2px; }
+.chart__tag { position: absolute; left: 14px; bottom: 8px; font-size: 11px; font-weight: 700; color: rgba(255,194,74,.85); }
+
+/* ---------- Price feed toggle ---------- */
+.feed { position: absolute; top: 10px; right: 12px; z-index: 2; text-align: right; }
+.feed__seg { display: inline-flex; background: rgba(16,26,48,.9); border: 1px solid var(--line); border-radius: 100px; padding: 3px; }
+.feed__seg button {
+  border: 0; background: transparent; color: var(--muted); font-family: var(--ui);
+  font-size: 12px; font-weight: 700; padding: 6px 12px; border-radius: 100px; cursor: pointer;
+}
+.feed__seg button[aria-pressed="true"] { background: var(--blue); color: #04101c; }
+.feed__seg button:disabled { opacity: .45; cursor: not-allowed; }
+.feed__status { font-size: 11px; color: var(--muted); margin-top: 5px; max-width: 220px; margin-left: auto; line-height: 1.35; }
+.feed__status.err { color: #ff8a8a; }
+
+/* ---------- Trade panel ---------- */
+.field { margin-bottom: 12px; }
+.field label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 6px; font-weight: 700; }
+.field .static {
+  background: var(--panel-2); border: 1px solid var(--line); border-radius: 10px;
+  padding: 11px 12px; font-size: 15px;
+}
+.stake {
+  width: 100%; background: var(--panel-2); border: 1px solid var(--line); border-radius: 10px;
+  color: #fff; font-family: var(--mono); font-size: 16px; padding: 11px 12px;
+}
+.stake:focus-visible, button:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+.presets { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+.presets button {
+  flex: 1; min-width: 44px; background: var(--panel-2); color: var(--ink);
+  border: 1px solid var(--line); border-radius: 8px; padding: 8px 0;
+  font-family: var(--mono); font-weight: 700; font-size: 13px; cursor: pointer;
+}
+.trade { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 4px; }
+.trade button {
+  border: 0; border-radius: 12px; padding: 14px 8px; cursor: pointer; color: #04110c;
+  font-family: var(--ui); font-weight: 800; font-size: 16px; line-height: 1.2;
+}
+.trade button small { display: block; font-size: 12px; font-weight: 700; opacity: .85; margin-top: 3px; }
+.btn-rise { background: var(--green); }
+.btn-fall { background: var(--red); color: #fff !important; }
+.trade button:disabled { opacity: .35; cursor: not-allowed; }
+.note { font-size: 12px; color: var(--muted); margin-top: 10px; line-height: 1.5; }
+
+/* open position */
+.pos { display: none; margin-top: 12px; background: var(--panel-2); border: 1px solid var(--line); border-radius: 12px; padding: 12px; }
+.pos.on { display: block; }
+.pos__row { display: flex; justify-content: space-between; font-size: 13px; padding: 3px 0; color: var(--muted); }
+.pos__row b { color: #fff; font-family: var(--mono); font-weight: 700; }
+.pos__bar { height: 5px; background: rgba(255,255,255,.08); border-radius: 3px; margin-top: 8px; overflow: hidden; }
+.pos__bar i { display: block; height: 100%; width: 0; background: var(--blue); transition: width .3s linear; }
+.result { display: none; margin-top: 12px; padding: 11px 12px; border-radius: 10px; font-size: 14px; font-weight: 800; }
+.result.on { display: block; }
+.result.win { background: rgba(31,209,139,.12); border: 1px solid rgba(31,209,139,.5); color: var(--green); }
+.result.loss { background: rgba(255,77,77,.1); border: 1px solid rgba(255,77,77,.5); color: #ff8a8a; }
+
+/* ---------- Stats ---------- */
+.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.stat { background: var(--panel-2); border-radius: 10px; padding: 10px; }
+.stat small { display: block; font-size: 11px; color: var(--muted); font-weight: 700; }
+.stat b { font-family: var(--mono); font-size: 15px; }
+.pos-num { color: var(--green); } .neg-num { color: #ff8a8a; }
+#spark { width: 100%; height: 56px; display: block; margin-top: 10px; }
+
+/* ---------- Signal strip ---------- */
+.signals { display: flex; gap: 6px; flex-wrap: wrap; min-height: 54px; align-items: flex-start; }
+.sig { width: 38px; text-align: center; }
+.sig__box {
+  height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center;
+  font-size: 14px; font-weight: 800; color: var(--ink);
+  background: linear-gradient(180deg, #1e4483, #163464); border: 1px solid rgba(120,160,255,.2);
+}
+.sig--pending .sig__box { background: transparent; border-style: dashed; color: var(--muted); }
+.sig__res { font-size: 12px; font-weight: 800; margin-top: 3px; height: 14px; }
+.sig__res.hit { color: var(--green); } .sig__res.miss { color: #ff8a8a; }
+.sigrate { font-size: 13px; color: var(--muted); margin-top: 10px; line-height: 1.5; }
+.sigrate b { color: #fff; font-family: var(--mono); }
+
+/* ---------- History ---------- */
+.hist { list-style: none; display: grid; gap: 6px; max-height: 220px; overflow: auto; }
+.hist li {
+  display: grid; grid-template-columns: 54px 1fr auto; gap: 8px; align-items: center;
+  background: var(--panel-2); border-radius: 8px; padding: 8px 10px; font-size: 12px; color: var(--muted);
+}
+.hist .dir { font-weight: 800; color: #fff; }
+.hist .amt { font-family: var(--mono); font-weight: 700; }
+.empty { font-size: 13px; color: var(--muted); }
+
+.reset {
+  width: 100%; margin-top: 10px; background: transparent; color: var(--ink);
+  border: 1px solid var(--line); border-radius: 10px; padding: 10px; font-weight: 700; cursor: pointer;
+  font-family: var(--ui);
+}
+.footer { text-align: center; font-size: 12px; color: var(--muted); margin-top: 14px; }
+
+/* ---------- Phone / narrow ---------- */
+@media (max-width: 860px) {
+  .grid { grid-template-columns: 1fr; }
+  .chart { height: clamp(230px, 38vh, 340px); }
+  /* trade panel right under the chart, then signals, then stats */
+  .col--side { display: contents; }
+  .order-chart { order: 1; } .order-trade { order: 2; } .order-signals { order: 3; }
+  .order-stats { order: 4; } .order-hist { order: 5; }
+  .grid { gap: 12px; }
+  .badge { font-size: 12px; padding: 6px 11px; }
+}
+@media (max-width: 400px) {
+  .stats { grid-template-columns: 1fr 1fr; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <span class="brand__dot"></span>
+    <span class="brand__name">Tick Trader Simulator</span>
+  </div>
+  <div class="badge" role="status">
+    <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M6 3.2v3.2M6 8.2v.1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+    <span id="badgeText">Simulation · demo money only</span>
+  </div>
+  <div class="balance">
+    <small>Demo balance</small>
+    <strong id="balance">10,000.00 USD</strong>
+  </div>
+</header>
+
+<div class="grid">
+
+  <div class="col">
+    <section class="card chart order-chart" aria-label="Simulated price chart">
+      <canvas id="chart"></canvas>
+      <div class="chart__title"><span id="symName" style="font-size:13px;font-weight:800;color:var(--ink);margin:0">Sim Index</span><span id="symSub">Simulated prices · 1 tick every 0.8 s</span></div>
+      <div class="feed">
+        <div class="feed__seg" role="group" aria-label="Price source">
+          <button type="button" id="feedSim" aria-pressed="true">Simulated</button>
+          <button type="button" id="feedLive" aria-pressed="false">Live prices</button>
+        </div>
+        <div class="feed__status" id="feedStatus"></div>
+      </div>
+      <span class="chart__tag" id="chartTag">Simulation</span>
+    </section>
+
+    <section class="card order-signals">
+      <h2>Coach signal strip (random)</h2>
+      <div class="signals" id="signals"></div>
+      <p class="sigrate" id="sigrate"></p>
+    </section>
+  </div>
+
+  <div class="col col--side">
+    <section class="card order-trade">
+      <h2>Place a demo trade</h2>
+      <div class="field">
+        <label>Contract</label>
+        <div class="static">Rise / Fall · 5 ticks</div>
+      </div>
+      <div class="field">
+        <label for="stake">Stake (demo USD)</label>
+        <input id="stake" class="stake" type="number" min="1" step="1" value="2" inputmode="decimal">
+        <div class="presets" id="presets">
+          <button type="button" data-v="1">1</button>
+          <button type="button" data-v="2">2</button>
+          <button type="button" data-v="5">5</button>
+          <button type="button" data-v="10">10</button>
+          <button type="button" data-v="50">50</button>
+        </div>
+      </div>
+      <div class="trade">
+        <button class="btn-rise" id="rise" type="button">Rise<small id="payoutR">Payout 3.70</small></button>
+        <button class="btn-fall" id="fall" type="button">Fall<small id="payoutF">Payout 3.70</small></button>
+      </div>
+
+      <div class="pos" id="pos">
+        <div class="pos__row"><span>Direction</span><b id="posDir">-</b></div>
+        <div class="pos__row"><span>Entry spot</span><b id="posEntry">-</b></div>
+        <div class="pos__row"><span>Current spot</span><b id="posNow">-</b></div>
+        <div class="pos__row"><span>Ticks left</span><b id="posLeft">-</b></div>
+        <div class="pos__bar"><i id="posBar"></i></div>
+      </div>
+      <div class="result" id="result" role="status"></div>
+
+      <p class="note">Payout is 1.85× the stake and a tie counts as a loss, as on real platforms. A fair coin flip therefore loses about 7.5% of each stake on average. This simulation does not hand out wins.</p>
+    </section>
+
+    <section class="card order-stats">
+      <h2>Session stats</h2>
+      <div class="stats">
+        <div class="stat"><small>Net result</small><b id="net">0.00</b></div>
+        <div class="stat"><small>Trades</small><b id="count">0</b></div>
+        <div class="stat"><small>Win rate</small><b id="winrate">-</b></div>
+      </div>
+      <canvas id="spark" aria-label="Demo balance over time"></canvas>
+      <button class="reset" id="reset" type="button">Reset demo balance</button>
+    </section>
+
+    <section class="card order-hist">
+      <h2>Recent trades</h2>
+      <ul class="hist" id="hist"></ul>
+      <p class="empty" id="histEmpty">No trades yet.</p>
+    </section>
+  </div>
+</div>
+
+<p class="footer"><span id="footText">Simulation for demonstration and education. Prices, signals and money are all fictional. Not trading advice.</span></p>
+
+<script>
+// ============================================================
+// Tick Trader Simulator: everything here is simulated.
+// ============================================================
+// ----- Live price feed settings (optional) -----
+// Register a free app at developers.deriv.com and paste your App ID here.
+// Check Deriv's current API docs: the endpoint below is the documented public
+// WebSocket for tick streams, but Deriv updates its API from time to time.
+const DERIV_APP_ID = '';                       // <- your App ID goes here
+const DERIV_WS_URL = 'wss://ws.derivws.com/websockets/v3';
+const DERIV_SYMBOL = '1HZ100V';                // 1-second Volatility 100 index
+const DERIV_LABEL  = 'Volatility 100 (1s) · live prices';
+
+let TICK_MS = 800;
+const DURATION = 5, PAYOUT = 1.85, START_BAL = 10000;
+
+const $ = id => document.getElementById(id);
+const fmt = (n, d = 2) => n.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
+
+// ---------- State ----------
+let balance = START_BAL;
+let balanceHist = [START_BAL];
+let trades = [];
+let pos = null;
+let prices = [];
+let price = 1154.90, drift = 0, tickCount = 0, lastTick = performance.now();
+let sigOpen = null, sigResults = [];
+let lo = 0, hi = 1, resetScale = false;
+
+function randn() {
+  let u = 0, v = 0;
+  while (!u) u = Math.random();
+  while (!v) v = Math.random();
+  return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+}
+function nextPrice() {
+  drift = drift * 0.55 + randn() * 0.22;
+  price = Math.max(100, price + drift + randn() * 0.15);
+  return Math.round(price * 100) / 100;
+}
+
+// ---------- Trading ----------
+function stakeValue() {
+  const v = parseFloat($('stake').value);
+  return isFinite(v) && v > 0 ? Math.round(v * 100) / 100 : 0;
+}
+function refreshControls() {
+  const s = stakeValue();
+  const can = s > 0 && s <= balance && !pos;
+  $('rise').disabled = !can; $('fall').disabled = !can;
+  const p = 'Payout ' + fmt(s * PAYOUT);
+  $('payoutR').textContent = p; $('payoutF').textContent = p;
+  $('balance').textContent = fmt(balance) + ' USD';
+}
+function openTrade(dir) {
+  const s = stakeValue();
+  if (!s || s > balance || pos) return;
+  balance = Math.round((balance - s) * 100) / 100;
+  pos = { dir, stake: s, entry: prices[prices.length - 1], left: DURATION };
+  $('result').className = 'result';
+  renderPos(); refreshControls();
+}
+function settle() {
+  const exit = prices[prices.length - 1];
+  const win = pos.dir === 'Rise' ? exit > pos.entry : exit < pos.entry;
+  const payout = win ? Math.round(pos.stake * PAYOUT * 100) / 100 : 0;
+  balance = Math.round((balance + payout) * 100) / 100;
+  const pl = Math.round((payout - pos.stake) * 100) / 100;
+  trades.unshift({ dir: pos.dir, stake: pos.stake, entry: pos.entry, exit, win, pl });
+  balanceHist.push(balance);
+  const r = $('result');
+  r.className = 'result on ' + (win ? 'win' : 'loss');
+  r.textContent = win
+    ? `Win: +${fmt(pl)} (exit ${fmt(exit)})`
+    : `Loss: -${fmt(pos.stake)} (exit ${fmt(exit)}${exit === pos.entry ? ', tie counts as a loss' : ''})`;
+  pos = null;
+  renderPos(); renderStats(); refreshControls();
+}
+function renderPos() {
+  const el = $('pos');
+  if (!pos) { el.classList.remove('on'); return; }
+  el.classList.add('on');
+  $('posDir').textContent = pos.dir;
+  $('posEntry').textContent = fmt(pos.entry);
+  $('posNow').textContent = fmt(prices[prices.length - 1]);
+  $('posLeft').textContent = pos.left;
+  $('posBar').style.width = ((DURATION - pos.left) / DURATION * 100) + '%';
+}
+
+// ---------- Stats, history, sparkline ----------
+function renderStats() {
+  const net = Math.round((balance - START_BAL) * 100) / 100;
+  const n = $('net');
+  n.textContent = (net > 0 ? '+' : '') + fmt(net);
+  n.className = net > 0 ? 'pos-num' : net < 0 ? 'neg-num' : '';
+  $('count').textContent = trades.length;
+  const wins = trades.filter(t => t.win).length;
+  $('winrate').textContent = trades.length ? Math.round(wins / trades.length * 100) + '%' : '-';
+
+  const ul = $('hist');
+  ul.innerHTML = '';
+  trades.slice(0, 20).forEach(t => {
+    const li = document.createElement('li');
+    li.innerHTML = `<span class="dir">${t.dir}</span><span>${fmt(t.entry)} → ${fmt(t.exit)} · stake ${fmt(t.stake)}</span><span class="amt ${t.win ? 'pos-num' : 'neg-num'}">${t.pl > 0 ? '+' : ''}${fmt(t.pl)}</span>`;
+    ul.appendChild(li);
+  });
+  $('histEmpty').style.display = trades.length ? 'none' : 'block';
+  drawSpark();
+}
+function drawSpark() {
+  const c = $('spark'), dpr = window.devicePixelRatio || 1;
+  const w = c.clientWidth, h = c.clientHeight;
+  if (!w) return;
+  c.width = w * dpr; c.height = h * dpr;
+  const g = c.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const d = balanceHist.length > 1 ? balanceHist : [START_BAL, START_BAL];
+  const mn = Math.min(...d, START_BAL), mx = Math.max(...d, START_BAL), r = (mx - mn) || 1;
+  const y = v => 6 + (mx - v) / r * (h - 12);
+  g.strokeStyle = 'rgba(255,194,74,.35)'; g.setLineDash([4, 4]);
+  g.beginPath(); g.moveTo(0, y(START_BAL)); g.lineTo(w, y(START_BAL)); g.stroke(); g.setLineDash([]);
+  g.strokeStyle = balance >= START_BAL ? '#1fd18b' : '#ff6b6b'; g.lineWidth = 2; g.lineJoin = 'round';
+  g.beginPath();
+  d.forEach((v, i) => { const x = i / (d.length - 1) * w; i ? g.lineTo(x, y(v)) : g.moveTo(x, y(v)); });
+  g.stroke();
+}
+
+// ---------- Coach signal strip (random, and scored honestly) ----------
+function updateSignals() {
+  const last = prices[prices.length - 1];
+  if (sigOpen) {
+    sigOpen.left--;
+    if (sigOpen.left === 0) {
+      const hit = sigOpen.dir === 'up' ? last > sigOpen.entry : last < sigOpen.entry;
+      sigResults.push({ dir: sigOpen.dir, hit });
+      if (sigResults.length > 40) sigResults.shift();
+      sigOpen = null;
+    }
+  } else if (tickCount % 6 === 0) {
+    sigOpen = { dir: Math.random() > 0.5 ? 'up' : 'down', entry: last, left: DURATION };
+  }
+  renderSignals();
+}
+function renderSignals() {
+  const box = $('signals');
+  box.innerHTML = '';
+  const cap = Math.max(6, Math.floor((box.clientWidth || 300) / 44) - 1);
+  sigResults.slice(-cap).forEach(s => {
+    const d = document.createElement('div'); d.className = 'sig';
+    d.innerHTML = `<div class="sig__box">${s.dir === 'up' ? '▲' : '▼'}</div><div class="sig__res ${s.hit ? 'hit' : 'miss'}">${s.hit ? '✓' : '✕'}</div>`;
+    box.appendChild(d);
+  });
+  if (sigOpen) {
+    const d = document.createElement('div'); d.className = 'sig sig--pending';
+    d.innerHTML = `<div class="sig__box">${sigOpen.dir === 'up' ? '▲' : '▼'}</div><div class="sig__res">${sigOpen.left}</div>`;
+    box.appendChild(d);
+  }
+  const total = sigResults.length, hits = sigResults.filter(s => s.hit).length;
+  $('sigrate').innerHTML = total
+    ? `Signals scored so far: <b>${hits}/${total}</b> (<b>${Math.round(hits / total * 100)}%</b>). They are random, so over time this settles near or below 50%, which is not enough to profit after payout.`
+    : 'Signals are random and are scored against the next 5 ticks. Watch the hit rate.';
+}
+
+// ---------- Chart ----------
+const canvas = $('chart'), ctx = canvas.getContext('2d');
+let W = 0, H = 0, STEP = 10;
+const PAD_R = 78;
+function resize() {
+  const dpr = window.devicePixelRatio || 1, r = canvas.getBoundingClientRect();
+  W = r.width; H = r.height;
+  canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  STEP = W < 600 ? 8 : 11;
+  drawSpark(); renderSignals();
+}
+function draw(now) {
+  ctx.clearRect(0, 0, W, H);
+  const progress = Math.min(1, (now - lastTick) / TICK_MS);
+  const headX = W - PAD_R - 4;
+  const vis = Math.ceil((W - PAD_R) / STEP) + 3;
+  const arr = prices.slice(-vis), m = arr.length;
+  if (m < 2) return;
+
+  let mn = Math.min(...arr), mx = Math.max(...arr);
+  if (pos) { mn = Math.min(mn, pos.entry); mx = Math.max(mx, pos.entry); }
+  const padv = Math.max(0.4, (mx - mn) * 0.18);
+  mn -= padv; mx += padv;
+  if (resetScale) { lo = mn; hi = mx; resetScale = false; }
+  lo += (mn - lo) * 0.12; hi += (mx - hi) * 0.12;
+  const yAt = v => 38 + (hi - v) / (hi - lo) * (H - 62);
+  const xAt = i => headX - (m - 1 - i) * STEP + STEP * (1 - progress);
+
+  // grid + axis labels
+  ctx.font = '11px "JetBrains Mono", monospace';
+  ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+  for (let k = 0; k <= 4; k++) {
+    const v = lo + (hi - lo) * (k / 4), gy = yAt(v);
+    ctx.strokeStyle = 'rgba(120,160,255,.08)'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(W - PAD_R + 6, gy); ctx.stroke();
+    ctx.fillStyle = 'rgba(214,228,255,.45)';
+    ctx.fillText(fmt(v), W - PAD_R + 12, gy);
+  }
+
+  // fill + line
+  const path = () => {
+    ctx.beginPath();
+    arr.forEach((v, i) => {
+      const x = xAt(i), y = yAt(v);
+      if (!i) { ctx.moveTo(x, y); return; }
+      const px = xAt(i - 1), py = yAt(arr[i - 1]), mx2 = (px + x) / 2;
+      ctx.quadraticCurveTo(px, py, mx2, (py + y) / 2);
+    });
+  };
+  path();
+  ctx.lineTo(xAt(m - 1), H); ctx.lineTo(xAt(0), H); ctx.closePath();
+  const gr = ctx.createLinearGradient(0, 0, 0, H);
+  gr.addColorStop(0, 'rgba(58,168,245,.22)'); gr.addColorStop(1, 'rgba(58,168,245,0)');
+  ctx.fillStyle = gr; ctx.fill();
+  path();
+  ctx.strokeStyle = '#e8f1ff'; ctx.lineWidth = 2.2; ctx.lineJoin = 'round';
+  ctx.shadowColor = 'rgba(58,168,245,.5)'; ctx.shadowBlur = 12; ctx.stroke(); ctx.shadowBlur = 0;
+
+  // entry line
+  if (pos) {
+    const ey = yAt(pos.entry);
+    ctx.strokeStyle = 'rgba(255,194,74,.8)'; ctx.setLineDash([6, 5]); ctx.lineWidth = 1.2;
+    ctx.beginPath(); ctx.moveTo(0, ey); ctx.lineTo(W - PAD_R + 6, ey); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle = '#ffc24a'; ctx.textAlign = 'left';
+    ctx.fillText('Entry ' + fmt(pos.entry), 12, ey - 9);
+  }
+
+  // head dot + price tag
+  const last = arr[m - 1], hx = xAt(m - 1), hy = yAt(last);
+  ctx.fillStyle = '#fff'; ctx.shadowColor = '#fff'; ctx.shadowBlur = 10;
+  ctx.beginPath(); ctx.arc(hx, hy, 4, 0, Math.PI * 2); ctx.fill(); ctx.shadowBlur = 0;
+  const tw = 68, th = 22, tx = W - PAD_R + 8;
+  ctx.fillStyle = '#fff';
+  ctx.beginPath(); ctx.roundRect ? ctx.roundRect(tx, hy - th / 2, tw, th, 5) : ctx.rect(tx, hy - th / 2, tw, th); ctx.fill();
+  ctx.fillStyle = '#05070d'; ctx.font = '700 12px "JetBrains Mono", monospace';
+  ctx.textAlign = 'center'; ctx.fillText(fmt(last), tx + tw / 2, hy + 1);
+}
+function loop(now) { draw(now); requestAnimationFrame(loop); }
+
+// ---------- Tick engine ----------
+function tick(live) {
+  tickCount++;
+  prices.push(typeof live === 'number' ? live : nextPrice());
+  if (prices.length > 300) prices.shift();
+  lastTick = performance.now();
+  if (pos) {
+    pos.left--;
+    renderPos();
+    if (pos.left === 0) settle();
+  }
+  updateSignals();
+}
+
+// ---------- Wire up ----------
+$('rise').addEventListener('click', () => openTrade('Rise'));
+$('fall').addEventListener('click', () => openTrade('Fall'));
+$('stake').addEventListener('input', refreshControls);
+$('presets').addEventListener('click', e => {
+  const v = e.target.dataset.v; if (!v) return;
+  $('stake').value = v; refreshControls();
+});
+$('reset').addEventListener('click', () => {
+  if (pos) return;
+  balance = START_BAL; balanceHist = [START_BAL]; trades = [];
+  $('result').className = 'result';
+  renderStats(); refreshControls();
+});
+window.addEventListener('resize', resize);
+
+for (let i = 0; i < 90; i++) prices.push(nextPrice());
+lo = Math.min(...prices) - 0.5; hi = Math.max(...prices) + 0.5;
+resize(); renderStats(); refreshControls(); renderSignals();
+
+// ---------- Price source: simulated or live ----------
+let feed = { mode: 'sim', ws: null };
+function setStatus(msg, err) { const s = $('feedStatus'); s.textContent = msg || ''; s.className = 'feed__status' + (err ? ' err' : ''); }
+function applyMode(mode) {
+  feed.mode = mode;
+  const live = mode === 'live';
+  $('feedSim').setAttribute('aria-pressed', String(!live));
+  $('feedLive').setAttribute('aria-pressed', String(live));
+  $('symName').textContent = live ? DERIV_LABEL : 'Sim Index';
+  $('symSub').textContent = live ? 'Real market prices · trades are still simulated' : 'Simulated prices · 1 tick every 0.8 s';
+  $('badgeText').textContent = live ? 'Real prices · simulated trades · demo money only' : 'Simulation · demo money only';
+  $('chartTag').textContent = live ? 'Simulated trades · demo money' : 'Simulation';
+  $('footText').textContent = live
+    ? 'Prices come from a public market feed. Trades, signals and money are fictional. Not trading advice.'
+    : 'Simulation for demonstration and education. Prices, signals and money are all fictional. Not trading advice.';
+}
+function resetFeedData(tickMs) {
+  TICK_MS = tickMs; prices = []; sigOpen = null; tickCount = 0; resetScale = true;
+}
+function useSimulated(msg, err) {
+  if (feed.ws) { try { feed.ws.close(); } catch (e) {} feed.ws = null; }
+  applyMode('sim');
+  resetFeedData(800);
+  for (let i = 0; i < 90; i++) prices.push(nextPrice());
+  setStatus(msg || '', err);
+}
+function useLive() {
+  if (!DERIV_APP_ID) { setStatus('Add your Deriv App ID in the code to enable live prices.', true); return; }
+  if (pos) { setStatus('Finish the open trade first.', true); return; }
+  setStatus('Connecting…');
+  let ws;
+  try { ws = new WebSocket(`${DERIV_WS_URL}?app_id=${encodeURIComponent(DERIV_APP_ID)}`); }
+  catch (e) { useSimulated('Could not connect. Using simulated prices.', true); return; }
+  feed.ws = ws;
+  let gotTick = false;
+  const timeout = setTimeout(() => { if (!gotTick && feed.ws === ws) useSimulated('No data from the feed. Using simulated prices.', true); }, 8000);
+  ws.onopen = () => ws.send(JSON.stringify({ ticks: DERIV_SYMBOL, subscribe: 1 }));
+  ws.onmessage = ev => {
+    let m; try { m = JSON.parse(ev.data); } catch (e) { return; }
+    if (m.error) { clearTimeout(timeout); if (feed.ws === ws) useSimulated('Feed error: ' + (m.error.message || 'unknown') + '. Using simulated prices.', true); return; }
+    if (m.tick && typeof m.tick.quote === 'number') {
+      if (!gotTick) { gotTick = true; clearTimeout(timeout); applyMode('live'); resetFeedData(1000); setStatus('Connected'); }
+      if (feed.ws === ws) tick(m.tick.quote);
+    }
+  };
+  ws.onerror = () => { if (feed.ws === ws && !gotTick) { clearTimeout(timeout); useSimulated('Connection failed. Using simulated prices.', true); } };
+  ws.onclose = () => { if (feed.ws === ws && gotTick) useSimulated('Live feed disconnected. Back to simulated prices.', true); };
+}
+$('feedSim').addEventListener('click', () => { if (feed.mode === 'live' && pos) { setStatus('Finish the open trade first.', true); return; } if (feed.mode === 'live') useSimulated(''); });
+$('feedLive').addEventListener('click', () => { if (feed.mode !== 'live') useLive(); });
+
+setInterval(() => { if (feed.mode === 'sim') tick(); }, 800);
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
