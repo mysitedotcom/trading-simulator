@@ -76,6 +76,9 @@ summary { cursor: pointer; font-weight: 800; color: var(--ink); }
 .set button { background: var(--panel2); color: var(--ink); border: 1px solid var(--line); border-radius: 10px; padding: 9px 12px; font: 700 13px var(--ui); cursor: pointer; }
 .set .hint { font-size: 12px; line-height: 1.5; }
 .foot { text-align: center; font-size: 11.5px; color: var(--muted); line-height: 1.5; padding: 2px 6px; }
+
+.chip { border: 1px solid var(--line); background: var(--panel); color: var(--ink); font: 700 12px var(--ui); padding: 7px 12px; border-radius: 100px; cursor: pointer; }
+.chip[aria-pressed="true"] { border-color: var(--up); color: var(--up); }
 body.compact .wavewrap, body.compact .recent, body.compact details { display: none; }
 button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-visible { outline: 2px solid var(--up); outline-offset: 2px; }
 @media (max-width: 420px) { .score { grid-template-columns: 1fr 1fr; } .tabs button { padding: 7px 8px; } }
@@ -94,6 +97,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-v
       <button type="button" data-s="1HZ100V">V100</button>
     </div>
     <span class="src wait" id="src" role="status">Starting…</span>
+    <button type="button" id="compact" class="chip" aria-pressed="false">Compact</button>
   </div>
 
   <div class="card wavewrap">
@@ -132,7 +136,6 @@ button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-v
       </label>
       <label>Skip volatile stretches <input type="checkbox" id="calm" checked></label>
       <label>Beep on a call <input type="checkbox" id="sound"></label>
-      <label>Compact view <input type="checkbox" id="compact"></label>
       <button type="button" id="csv">Download results (CSV)</button>
       <button type="button" id="clearLog">Clear saved results</button>
       <p class="hint">Results are saved in this browser, per market, rule setting and source (live or simulated), so the scoreboard never mixes them.</p>
@@ -167,8 +170,15 @@ const store = {
 };
 if (store.get('symbol') && NAMES[store.get('symbol')]) symbol = store.get('symbol');
 ['streak', 'dur'].forEach(k => { const v = store.get(k); if (v) $(k).value = v; });
-['calm', 'sound', 'compact'].forEach(k => { const v = store.get(k); if (v !== null) $(k).checked = v === '1'; });
-document.body.classList.toggle('compact', $('compact').checked);
+['calm', 'sound'].forEach(k => { const v = store.get(k); if (v !== null) $(k).checked = v === '1'; });
+function setCompact(on) {
+  document.body.classList.toggle('compact', on);
+  $('compact').setAttribute('aria-pressed', String(on));
+  $('compact').textContent = on ? 'Expand' : 'Compact';
+  store.set('compact', on ? '1' : '0');
+  if (window.__ready) drawLine();
+}
+setCompact(store.get('compact') === '1');
 try { log = JSON.parse(store.get('log') || '[]'); if (!Array.isArray(log)) log = []; } catch (e) { log = []; }
 
 // ---- rule ----
@@ -397,9 +407,8 @@ $('tabs').addEventListener('click', e => {
   symbol = s; store.set('symbol', s); markTab(); start();
 });
 $('connect').addEventListener('click', startLive);
-['streak', 'dur', 'calm', 'sound', 'compact'].forEach(k => $(k).addEventListener('change', () => {
+['streak', 'dur', 'calm', 'sound'].forEach(k => $(k).addEventListener('change', () => {
   store.set(k, $(k).type === 'checkbox' ? ($(k).checked ? '1' : '0') : $(k).value);
-  if (k === 'compact') document.body.classList.toggle('compact', $('compact').checked);
   if (k === 'streak' || k === 'dur' || k === 'calm') open = null;
   render();
 }));
@@ -414,8 +423,10 @@ $('clearLog').addEventListener('click', () => {
   if (!confirm('Delete all saved results?')) return;
   log = []; store.set('log', '[]'); render();
 });
+$('compact').addEventListener('click', () => setCompact(!document.body.classList.contains('compact')));
 window.addEventListener('resize', drawLine);
 function start() { startLive(); }
+window.__ready = true;
 markTab(); start();
 </script>
 </body>
