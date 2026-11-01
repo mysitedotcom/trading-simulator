@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Touch / No Touch Bot</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;700;800&family=JetBrains+Mono:wght@600;700&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+:root {
+  --bg: #05070d; --panel: #0b1120; --panel2: #101a30; --line: rgba(120,160,255,.15);
+  --ink: #d6e4ff; --muted: rgba(214,228,255,.62);
+  --blue: #3aa8f5; --red: #ff4d4d; --green: #2ecc71; --amber: #ffc24a;
+  --ui: 'Manrope', Arial, sans-serif; --mono: 'JetBrains Mono', 'Courier New', monospace;
+}
+body {
+  background: radial-gradient(900px 500px at 50% -10%, #0e1a36, var(--bg) 65%);
+  color: #fff; font-family: var(--ui); min-height: 100vh; display: flex; justify-content: center;
+  padding: calc(10px + env(safe-area-inset-top)) 10px calc(14px + env(safe-area-inset-bottom));
+}
+.app { width: 100%; max-width: 560px; display: grid; gap: 10px; align-content: start; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 12px; }
+.card h2 { font-size: 13px; font-weight: 800; color: var(--ink); margin-bottom: 10px; }
+
+.bar { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+.seg { display: inline-flex; gap: 3px; background: var(--panel); border: 1px solid var(--line); border-radius: 100px; padding: 3px; }
+.seg button { border: 0; background: transparent; color: var(--muted); font: 700 12px var(--ui); padding: 7px 11px; border-radius: 100px; cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--blue); color: #04101c; }
+.src { font-size: 12px; font-weight: 800; padding: 6px 12px; border-radius: 100px; border: 1px solid; }
+.src.live { color: var(--green); border-color: rgba(46,204,113,.5); background: rgba(46,204,113,.08); }
+.src.demo { color: var(--amber); border-color: rgba(255,194,74,.5); background: rgba(255,194,74,.08); }
+.src.wait { color: var(--muted); border-color: var(--line); }
+
+#chart { display: block; width: 100%; height: 170px; }
+.sub { font-size: 12px; color: var(--muted); line-height: 1.5; margin-top: 6px; }
+
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.f label { display: block; font-size: 11.5px; color: var(--muted); font-weight: 700; margin-bottom: 5px; }
+.f input, .f select {
+  width: 100%; background: var(--panel2); color: #fff; border: 1px solid var(--line); border-radius: 10px;
+  padding: 10px 11px; font: 600 15px var(--mono);
+}
+.chips { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+.chips button { flex: 1; min-width: 56px; background: var(--panel2); color: var(--ink); border: 1px solid var(--line); border-radius: 8px; padding: 7px 0; font: 700 12px var(--mono); cursor: pointer; }
+.full { grid-column: 1 / -1; }
+
+.verdict { text-align: center; padding: 14px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel2); }
+.verdict b { display: block; font-size: clamp(26px, 8vw, 36px); font-weight: 800; letter-spacing: .5px; color: rgba(214,228,255,.45); }
+.verdict.take b { color: var(--green); } .verdict.skip b { color: var(--amber); }
+.verdict.take { border-color: rgba(46,204,113,.55); }
+.verdict span { display: block; font-size: 12.5px; color: var(--muted); margin-top: 6px; line-height: 1.5; }
+
+.kv { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 10px; }
+.stat { background: var(--panel2); border-radius: 10px; padding: 9px; }
+.stat small { display: block; font-size: 11px; color: var(--muted); font-weight: 700; }
+.stat b { font: 700 15px var(--mono); }
+.good { color: var(--green); } .bad { color: #ff8a8a; }
+
+table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+th { text-align: right; color: var(--muted); font-weight: 700; padding: 4px 6px; }
+td { text-align: right; padding: 6px; font-family: var(--mono); border-top: 1px solid var(--line); }
+th:first-child, td:first-child { text-align: left; }
+
+.go { width: 100%; border: 0; border-radius: 12px; padding: 14px; font: 800 15px var(--ui); background: var(--blue); color: #04101c; cursor: pointer; }
+.go:disabled { opacity: .35; cursor: not-allowed; }
+.open { display: none; margin-top: 10px; background: var(--panel2); border-radius: 10px; padding: 10px; font-size: 13px; line-height: 1.7; color: var(--muted); }
+.open.on { display: block; } .open b { color: #fff; font-family: var(--mono); }
+.result { display: none; margin-top: 10px; padding: 10px 12px; border-radius: 10px; font-weight: 800; font-size: 14px; }
+.result.on { display: block; }
+.result.win { background: rgba(46,204,113,.12); border: 1px solid rgba(46,204,113,.5); color: var(--green); }
+.result.loss { background: rgba(255,77,77,.1); border: 1px solid rgba(255,77,77,.5); color: #ff8a8a; }
+.btns { display: flex; gap: 8px; margin-top: 10px; }
+.btns button { flex: 1; background: var(--panel2); color: var(--ink); border: 1px solid var(--line); border-radius: 10px; padding: 9px; font: 700 12.5px var(--ui); cursor: pointer; }
+.foot { text-align: center; font-size: 11.5px; color: var(--muted); line-height: 1.5; padding: 2px 6px; }
+button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="bar">
+    <div class="seg" id="tabs" role="group" aria-label="Market">
+      <button type="button" data-s="1HZ10V">V10</button>
+      <button type="button" data-s="1HZ25V" aria-pressed="true">V25</button>
+      <button type="button" data-s="1HZ50V">V50</button>
+      <button type="button" data-s="1HZ75V">V75</button>
+      <button type="button" data-s="1HZ90V">V90</button>
+      <button type="button" data-s="1HZ100V">V100</button>
+    </div>
+    <span class="src wait" id="src" role="status">Starting…</span>
+  </div>
+
+  <div class="card">
+    <canvas id="chart" aria-label="Recent ticks with barrier"></canvas>
+    <p class="sub" id="sigma">Collecting ticks…</p>
+  </div>
+
+  <div class="card">
+    <h2>Contract</h2>
+    <div class="grid2">
+      <div class="f full">
+        <label>Side</label>
+        <div class="seg" id="sideSeg" style="display:flex">
+          <button type="button" data-v="touch" aria-pressed="true" style="flex:1">Touch</button>
+          <button type="button" data-v="no" aria-pressed="false" style="flex:1">No Touch</button>
+        </div>
+      </div>
+      <div class="f">
+        <label for="dur">Duration (ticks)</label>
+        <select id="dur"><option>5</option><option>6</option><option>7</option><option>8</option><option>9</option><option>10</option></select>
+      </div>
+      <div class="f">
+        <label>Barrier is</label>
+        <div class="seg" id="dirSeg" style="display:flex">
+          <button type="button" data-v="1" aria-pressed="true" style="flex:1">Above</button>
+          <button type="button" data-v="-1" aria-pressed="false" style="flex:1">Below</button>
+        </div>
+      </div>
+      <div class="f full">
+        <label for="barrier">Barrier distance from entry (points)</label>
+        <input id="barrier" type="number" step="any" min="0" inputmode="decimal" placeholder="e.g. 0.60">
+        <div class="chips" id="chips">
+          <button type="button" data-k="0.5">0.5σ</button><button type="button" data-k="1">1σ</button>
+          <button type="button" data-k="1.5">1.5σ</button><button type="button" data-k="2">2σ</button><button type="button" data-k="3">3σ</button>
+        </div>
+        <p class="sub">σ here means a typical move over the whole trade length. Use the distance Deriv allows.</p>
+      </div>
+      <div class="f">
+        <label for="stake">Stake (USD)</label>
+        <input id="stake" type="number" step="any" min="0" value="1" inputmode="decimal">
+      </div>
+      <div class="f">
+        <label for="payout">Payout Deriv shows (USD)</label>
+        <input id="payout" type="number" step="any" min="0" inputmode="decimal" placeholder="from Deriv">
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Bot call</h2>
+    <div class="verdict" id="verdict"><b>WAIT</b><span id="vtext">Collecting ticks to measure volatility.</span></div>
+    <div class="kv" style="margin-top:10px">
+      <div class="stat"><small>Chance it touches</small><b id="pT">-</b></div>
+      <div class="stat"><small>Chance it doesn't</small><b id="pN">-</b></div>
+      <div class="stat"><small>Fair payout, Touch</small><b id="fT">-</b></div>
+      <div class="stat"><small>Fair payout, No Touch</small><b id="fN">-</b></div>
+    </div>
+    <p class="sub" id="edge"></p>
+  </div>
+
+  <div class="card">
+    <h2>Fair-price table (compare with Deriv's payout)</h2>
+    <table>
+      <thead><tr><th>Barrier</th><th>Touch</th><th>Fair ×</th><th>Fair × (No)</th></tr></thead>
+      <tbody id="tbl"></tbody>
+    </table>
+    <p class="sub">"Fair ×" is the payout multiple a bet needs to break even if the model is right. If Deriv's payout is lower, the bet loses on average.</p>
+  </div>
+
+  <div class="card">
+    <h2>Paper trade</h2>
+    <button class="go" id="go" type="button">Paper trade this contract</button>
+    <div class="open" id="open"></div>
+    <div class="result" id="result" role="status"></div>
+    <div class="kv" style="margin-top:12px">
+      <div class="stat"><small>Paper trades</small><b id="nT">0</b></div>
+      <div class="stat"><small>Paper result</small><b id="pnl">0.00</b></div>
+      <div class="stat"><small>Wins (actual)</small><b id="wA">0</b></div>
+      <div class="stat"><small>Wins (model expected)</small><b id="wE">0.0</b></div>
+    </div>
+    <p class="sub" id="calib">Each paper trade is scored on real ticks. The model-expected wins let you check whether the maths matches reality.</p>
+    <div class="btns"><button type="button" id="csv">Download CSV</button><button type="button" id="clearLog">Clear saved trades</button></div>
+  </div>
+
+  <p class="foot">Estimates assume a random walk with the volatility measured from recent ticks. Deriv's real payouts include a margin. Paper trading only; not financial advice.</p>
+</div>
+
+<script>
+// ============================================================
+// Touch / No Touch bot
+// Estimates the chance a barrier is touched, compares it with the payout
+// Deriv shows, and scores paper trades on real ticks.
+// ============================================================
+const WS_URL = 'wss://api.derivws.com/trading/v1/options/ws/public';  // check developers.deriv.com if it ever changes
+const NAMES = { '1HZ10V': 'Volatility 10 (1s)', '1HZ25V': 'Volatility 25 (1s)', '1HZ50V': 'Volatility 50 (1s)', '1HZ75V': 'Volatility 75 (1s)', '1HZ90V': 'Volatility 90 (1s)', '1HZ100V': 'Volatility 100 (1s)' };
+const $ = id => document.getElementById(id);
+const EDGE_NEEDED = 0.03;   // required edge before the bot says TAKE (covers model error)
+
+let symbol = '1HZ25V', mode = 'wait', prices = [], pip = 2, lastEpoch = 0;
+let side = 'touch', dir = 1, pend = null, log = [];
+let ws = null, gen = 0, demoTimer = null, retry = 0, retryTimer = null;
+
+const store = {
+  get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+};
+try { log = JSON.parse(store.get('tn_log') || '[]'); if (!Array.isArray(log)) log = []; } catch (e) { log = []; }
+['dur', 'stake', 'payout', 'barrier'].forEach(k => { const v = store.get('tn_' + k); if (v !== null) $(k).value = v; });
+if (store.get('tn_side')) side = store.get('tn_side');
+if (store.get('tn_dir')) dir = parseInt(store.get('tn_dir'), 10) === -1 ? -1 : 1;
+if (store.get('tn_symbol') && NAMES[store.get('tn_symbol')]) symbol = store.get('tn_symbol');
+
+// ---------- maths ----------
+function erf(x) {   // Abramowitz-Stegun 7.1.26
+  const s = x < 0 ? -1 : 1; x = Math.abs(x);
+  const t = 1 / (1 + 0.3275911 * x);
+  const y = 1 - (((((1.061405429 * t - 1.453152027) * t) + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t * Math.exp(-x * x);
+  return s * y;
+}
+const Phi = z => 0.5 * (1 + erf(z / Math.SQRT2));
+function sigmaTick() {
+  const n = Math.min(100, prices.length - 1);
+  if (n < 30) return null;
+  let m = 0; const d = [];
+  for (let i = prices.length - n; i < prices.length; i++) d.push(prices[i] - prices[i - 1]);
+  m = d.reduce((a, b) => a + b, 0) / n;
+  const v = d.reduce((a, b) => a + (b - m) * (b - m), 0) / (n - 1);
+  return Math.sqrt(v);
+}
+// Chance that a driftless walk with N steps reaches distance b at any tick.
+// Reflection principle with the discrete-monitoring correction (Broadie-Glasserman).
+function pTouch(b, sigma, N) {
+  if (!(b > 0) || !(sigma > 0)) return null;
+  const adj = b + 0.5826 * sigma;
+  return Math.min(1, Math.max(0, 2 * (1 - Phi(adj / (sigma * Math.sqrt(N))))));
+}
+const num = id => { const v = parseFloat($(id).value); return isFinite(v) ? v : NaN; };
+const dur = () => parseInt($('dur').value, 10) || 5;
+const fmt = (x, d = 2) => isFinite(x) ? x.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d }) : '-';
+const pct = x => x === null ? '-' : (x * 100).toFixed(1) + '%';
+const mult = p => (p === null || p <= 0) ? '-' : '×' + (1 / p).toFixed(2);
+
+// ---------- ticks in ----------
+function onTick(p, epoch) {
+  if (epoch <= lastEpoch) return;
+  const gap = lastEpoch ? epoch - lastEpoch : 0;
+  lastEpoch = epoch;
+  if (gap > 5 && pend) { pend = null; showResult(null, 'Paper trade voided: ticks were missed.'); }
+  prices.push(p);
+  if (prices.length > 400) prices.shift();
+
+  if (pend) {
+    pend.left--;
+    const hit = pend.dirn > 0 ? p >= pend.barrier : p <= pend.barrier;
+    if (hit) pend.touched = true;
+    // Touch wins as soon as the barrier is touched; otherwise the contract runs to the end
+    if (pend.touched || pend.left === 0) settle(p);
+  }
+  render();
+}
+function settle(lastTick) {
+  const t = pend, win = t.side === 'touch' ? t.touched : !t.touched;
+  const pl = win ? t.stake * (t.payout / t.stake - 1) : -t.stake;
+  log.push({ t: t.epoch, src: t.src, sym: t.sym, side: t.side, dirn: t.dirn, dur: t.dur, entry: t.entry, barrier: t.barrier,
+             stake: t.stake, payout: t.payout, modelP: t.modelP, touched: t.touched, win, pl });
+  if (log.length > 3000) log.splice(0, log.length - 3000);
+  store.set('tn_log', JSON.stringify(log));
+  showResult(win, win
+    ? `Win: +${fmt(pl)} (${t.side === 'touch' ? 'barrier touched' : 'barrier not touched'})`
+    : `Loss: -${fmt(t.stake)} (${t.touched ? 'barrier was touched' : 'barrier not touched'}, last tick ${fmt(lastTick, pip)})`);
+  pend = null;
+}
+function showResult(win, text) {
+  const r = $('result'); r.className = 'result on ' + (win ? 'win' : 'loss'); r.textContent = text;
+}
+
+// ---------- sources ----------
+function setSrc(k, t) { const s = $('src'); s.className = 'src ' + k; s.textContent = t; }
+function resetData() { prices = []; pend = null; lastEpoch = 0; render(); }
+function stopAll() {
+  gen++; clearInterval(demoTimer); demoTimer = null; clearTimeout(retryTimer);
+  if (ws) { try { ws.close(); } catch (e) {} ws = null; }
+}
+function gauss() { let u = 0, v = 0; while (!u) u = Math.random(); while (!v) v = Math.random(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); }
+function startDemo() {
+  stopAll(); resetData(); mode = 'demo'; pip = 2;
+  let p = 1154.9;
+  for (let i = 0; i < 80; i++) { p = Math.max(100, p + gauss() * 0.4); prices.push(Math.round(p * 100) / 100); }
+  lastEpoch = Math.floor(Date.now() / 1000);
+  setSrc('demo', 'SIMULATED ticks');
+  demoTimer = setInterval(() => { p = Math.max(100, p + gauss() * 0.4); onTick(Math.round(p * 100) / 100, lastEpoch + 1); }, 1000);
+  render();
+}
+function startLive() {
+  stopAll(); resetData(); mode = 'wait'; setSrc('wait', 'Connecting…');
+  const myGen = gen; let got = false, sock;
+  try { sock = new WebSocket(WS_URL); } catch (e) { startDemo(); return; }
+  ws = sock;
+  const timer = setTimeout(() => { if (!got && myGen === gen) startDemo(); }, 9000);
+  const live = () => { if (!got) { got = true; clearTimeout(timer); mode = 'live'; retry = 0; setSrc('live', 'LIVE · ' + NAMES[symbol]); } };
+  sock.onopen = () => {
+    sock.send(JSON.stringify({ ticks_history: symbol, count: 120, end: 'latest', style: 'ticks' }));
+    sock.send(JSON.stringify({ ticks: symbol, subscribe: 1 }));
+  };
+  sock.onmessage = ev => {
+    if (myGen !== gen) return;
+    let m; try { m = JSON.parse(ev.data); } catch (e) { return; }
+    if (m.error) { clearTimeout(timer); if (!got) startDemo(); return; }
+    if (m.msg_type === 'history' && m.history && m.history.prices) {
+      pip = m.pip_size || pip; prices = m.history.prices.map(Number);
+      const ts = m.history.times; if (ts && ts.length) lastEpoch = Number(ts[ts.length - 1]);
+      live(); render();
+    } else if (m.msg_type === 'tick' && m.tick && typeof m.tick.quote === 'number') {
+      pip = m.tick.pip_size || pip; live();
+      onTick(m.tick.quote, Number(m.tick.epoch) || Math.floor(Date.now() / 1000));
+    }
+  };
+  sock.onerror = () => {};
+  sock.onclose = () => {
+    if (myGen !== gen) return; clearTimeout(timer);
+    if (got) { setSrc('wait', 'Reconnecting…'); retry = Math.min(retry + 1, 5); retryTimer = setTimeout(startLive, retry * 2000); }
+    else startDemo();
+  };
+}
+
+// ---------- chart ----------
+const cv = $('chart'), cx = cv.getContext('2d');
+function drawChart(barrierPrice) {
+  const dpr = window.devicePixelRatio || 1, r = cv.getBoundingClientRect(), W = r.width, H = r.height;
+  if (!W) return;
+  cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); cx.setTransform(dpr, 0, 0, dpr, 0, 0); cx.clearRect(0, 0, W, H);
+  const n = Math.max(20, Math.floor((W - 70) / 9));
+  const arr = prices.slice(-n); if (arr.length < 2) return;
+  let mn = Math.min(...arr), mx = Math.max(...arr);
+  const extra = [pend ? pend.barrier : barrierPrice, pend ? pend.entry : null].filter(v => isFinite(v) && v !== null);
+  extra.forEach(v => { mn = Math.min(mn, v); mx = Math.max(mx, v); });
+  const pad = (mx - mn) * 0.12 || 0.5; mn -= pad; mx += pad;
+  const X = i => 8 + i * ((W - 78) / (arr.length - 1)), Y = v => 10 + (mx - v) / (mx - mn) * (H - 20);
+
+  cx.strokeStyle = '#e8f1ff'; cx.lineWidth = 2; cx.lineJoin = 'round';
+  cx.beginPath(); arr.forEach((v, i) => i ? cx.lineTo(X(i), Y(v)) : cx.moveTo(X(i), Y(v))); cx.stroke();
+  const last = arr[arr.length - 1];
+  cx.fillStyle = '#fff'; cx.beginPath(); cx.arc(X(arr.length - 1), Y(last), 4, 0, 7); cx.fill();
+  cx.font = '600 11px "JetBrains Mono", monospace'; cx.textAlign = 'left'; cx.textBaseline = 'middle';
+  cx.fillStyle = '#e8f1ff'; cx.fillText(fmt(last, pip), W - 66, Y(last));
+
+  const line = (v, color, label) => {
+    if (!isFinite(v)) return;
+    cx.strokeStyle = color; cx.setLineDash([6, 5]); cx.lineWidth = 1.3;
+    cx.beginPath(); cx.moveTo(0, Y(v)); cx.lineTo(W - 70, Y(v)); cx.stroke(); cx.setLineDash([]);
+    cx.fillStyle = color; cx.fillText(label, W - 66, Y(v) + (label === 'Entry' ? 12 : 0));
+  };
+  if (pend) { line(pend.entry, 'rgba(214,228,255,.6)', 'Entry'); line(pend.barrier, '#ffc24a', 'Barrier'); }
+  else line(barrierPrice, '#ffc24a', 'Barrier');
+}
+
+// ---------- render ----------
+function render() {
+  const sg = sigmaTick(), N = dur(), mag = num('barrier'), stake = num('stake'), pay = num('payout');
+  const lastP = prices[prices.length - 1];
+  const barrierPrice = (isFinite(mag) && mag > 0 && lastP !== undefined) ? lastP + dir * mag : NaN;
+  drawChart(barrierPrice);
+
+  const v = $('verdict');
+  if (!sg) {
+    $('sigma').textContent = 'Collecting ticks…';
+    v.className = 'verdict'; v.querySelector('b').textContent = 'WAIT'; $('vtext').textContent = 'Collecting ticks to measure volatility.';
+  } else {
+    const typical = sg * Math.sqrt(N);
+    $('sigma').textContent = `Typical tick move: ${fmt(sg, 3)} · typical ${N}-tick move: ${fmt(typical, 2)} points (measured from the last ${Math.min(100, prices.length - 1)} ticks)`;
+    const pT = pTouch(mag, sg, N), pN = pT === null ? null : 1 - pT;
+    $('pT').textContent = pct(pT); $('pN').textContent = pct(pN);
+    $('fT').textContent = pT === null ? '-' : mult(pT); $('fN').textContent = pN === null ? '-' : mult(pN);
+
+    const pSel = pT === null ? null : (side === 'touch' ? pT : pN);
+    if (pSel === null) {
+      v.className = 'verdict'; v.querySelector('b').textContent = 'WAIT'; $('vtext').textContent = 'Enter a barrier distance.';
+      $('edge').textContent = '';
+    } else if (!(pay > 0) || !(stake > 0)) {
+      v.className = 'verdict'; v.querySelector('b').textContent = 'WAIT'; $('vtext').textContent = "Enter the payout Deriv shows for this contract and stake, and I'll compare it with the fair price.";
+      $('edge').textContent = '';
+    } else {
+      const m = pay / stake, ev = pSel * m - 1;
+      $('edge').textContent = `${side === 'touch' ? 'Touch' : 'No Touch'}: model chance ${pct(pSel)}, Deriv multiple ×${m.toFixed(2)}, fair multiple ${mult(pSel)}. Expected result per stake: ${ev >= 0 ? '+' : ''}${(ev * 100).toFixed(1)}%.`;
+      if (ev > EDGE_NEEDED) {
+        v.className = 'verdict take'; v.querySelector('b').textContent = 'TAKE ' + (side === 'touch' ? 'TOUCH' : 'NO TOUCH');
+        $('vtext').textContent = 'By this model the payout is above fair value. Model error and fast price changes can erase that, so treat it as a small edge at best.';
+      } else {
+        v.className = 'verdict skip'; v.querySelector('b').textContent = 'SKIP';
+        $('vtext').textContent = 'The payout is at or below fair value, so the expected result is negative. Try another barrier or duration, and compare the table below.';
+      }
+    }
+
+    // table
+    const rows = [0.5, 1, 1.5, 2, 2.5, 3].map(k => {
+      const b = Math.round(k * typical * Math.pow(10, pip)) / Math.pow(10, pip);
+      const p = pTouch(b, sg, N);
+      return `<tr><td>${dir > 0 ? '+' : '-'}${fmt(b, pip)} (${k}σ)</td><td>${pct(p)}</td><td>${mult(p)}</td><td>${mult(1 - p)}</td></tr>`;
+    });
+    $('tbl').innerHTML = rows.join('');
+  }
+
+  // paper trade controls
+  const ready = sg && isFinite(mag) && mag > 0 && stake > 0 && pay > stake && !pend && mode !== 'wait';
+  $('go').disabled = !ready;
+  $('go').textContent = pend ? 'Trade in progress…' : (pay > stake ? 'Paper trade this contract' : 'Enter a payout above your stake');
+  const o = $('open');
+  if (pend) {
+    o.classList.add('on');
+    o.innerHTML = `${pend.side === 'touch' ? 'Touch' : 'No Touch'} · entry <b>${fmt(pend.entry, pip)}</b> · barrier <b>${fmt(pend.barrier, pip)}</b> · ticks left <b>${pend.left}</b>`;
+  } else o.classList.remove('on');
+
+  // scoreboard (live and simulated kept apart)
+  const mine = log.filter(r => r.src === mode);
+  const n = mine.length, wins = mine.filter(r => r.win).length;
+  const exp = mine.reduce((a, r) => a + r.modelP, 0), varsum = mine.reduce((a, r) => a + r.modelP * (1 - r.modelP), 0);
+  const pl = mine.reduce((a, r) => a + r.pl, 0);
+  $('nT').textContent = n; $('wA').textContent = wins; $('wE').textContent = exp.toFixed(1);
+  $('pnl').textContent = (pl > 0 ? '+' : '') + pl.toFixed(2);   $('pnl').style.color = pl > 0 ? 'var(--green)' : pl < 0 ? '#ff8a8a' : '';
+  const c = $('calib');
+  if (n < 30) c.textContent = 'Too few paper trades to judge. Each is scored on real ticks; the model-expected wins show whether the maths matches reality.';
+  else {
+    const z = (wins - exp) / Math.sqrt(Math.max(varsum, 1e-9));
+    c.textContent = Math.abs(z) < 2
+      ? `Actual wins are in line with the model (${wins} vs ${exp.toFixed(1)} expected). The model is reasonable; whether the bets pay depends on Deriv's payouts, which show in the paper result.`
+      : `Actual wins (${wins}) differ from the model (${exp.toFixed(1)} expected) by more than chance explains. Don't trust the model's calls until that gap closes.`;
+  }
+}
+
+// ---------- paper trade ----------
+$('go').addEventListener('click', () => {
+  const sg = sigmaTick(), mag = num('barrier'), stake = num('stake'), pay = num('payout'), N = dur();
+  if (!sg || pend || !(mag > 0) || !(pay > stake)) return;
+  const entry = prices[prices.length - 1];
+  const pT = pTouch(mag, sg, N);
+  $('result').className = 'result';
+  pend = { src: mode, sym: symbol, side, dirn: dir, dur: N, entry, barrier: Math.round((entry + dir * mag) * 1e6) / 1e6,
+           stake, payout: pay, modelP: side === 'touch' ? pT : 1 - pT, left: N, touched: false, epoch: lastEpoch };
+  render();
+});
+
+// ---------- wiring ----------
+function mark(id, attr, val) { document.querySelectorAll('#' + id + ' button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset[attr] === String(val)))); }
+$('tabs').addEventListener('click', e => { const s = e.target.dataset && e.target.dataset.s; if (!s || s === symbol) return; symbol = s; store.set('tn_symbol', s); mark('tabs', 's', s); startLive(); });
+$('sideSeg').addEventListener('click', e => { const v = e.target.dataset && e.target.dataset.v; if (!v) return; side = v; store.set('tn_side', v); mark('sideSeg', 'v', v); render(); });
+$('dirSeg').addEventListener('click', e => { const v = e.target.dataset && e.target.dataset.v; if (!v) return; dir = parseInt(v, 10); store.set('tn_dir', String(dir)); mark('dirSeg', 'v', v); render(); });
+$('chips').addEventListener('click', e => {
+  const k = parseFloat(e.target.dataset && e.target.dataset.k), sg = sigmaTick(); if (!k || !sg) return;
+  const b = k * sg * Math.sqrt(dur());
+  $('barrier').value = (Math.round(b * Math.pow(10, pip)) / Math.pow(10, pip)).toFixed(pip);
+  store.set('tn_barrier', $('barrier').value); render();
+});
+['dur', 'stake', 'payout', 'barrier'].forEach(k => $(k).addEventListener('input', () => { store.set('tn_' + k, $(k).value); render(); }));
+$('csv').addEventListener('click', () => {
+  const rows = ['time_utc,source,symbol,side,barrier_dir,ticks,entry,barrier,stake,payout,model_prob,touched,result,pl'];
+  log.forEach(r => rows.push([new Date(r.t * 1000).toISOString(), r.src, r.sym, r.side, r.dirn > 0 ? 'above' : 'below', r.dur, r.entry, r.barrier, r.stake, r.payout, r.modelP.toFixed(4), r.touched, r.win ? 'win' : 'loss', r.pl.toFixed(2)].join(',')));
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([rows.join('\n')], { type: 'text/csv' }));
+  a.download = 'touch-bot-trades.csv'; document.body.appendChild(a); a.click(); a.remove();
+});
+$('clearLog').addEventListener('click', () => { if (!confirm('Delete all saved paper trades?')) return; log = []; store.set('tn_log', '[]'); render(); });
+window.addEventListener('resize', render);
+
+mark('tabs', 's', symbol); mark('sideSeg', 'v', side); mark('dirSeg', 'v', String(dir));
+startLive();
+</script>
+</body>
+</html>
